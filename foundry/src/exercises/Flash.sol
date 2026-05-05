@@ -33,10 +33,31 @@ contract Flash is IUnlockCallback {
         returns (bytes memory)
     {
         // Write your code here
+        (address currency, uint256 amount) =
+            abi.decode(data, (address, uint256));
+
+        // Take the Loan
+        poolManager.take({currency: currency, to: address(this), amount: amount});
+
+        // Do Flash Loan operation
+        (bool ok,) = tester.call("");
+        require(ok, "test failed");
+
+        // Settle the Loan
+        poolManager.sync(currency);
+
+        if (currency == address(0)) {
+            poolManager.settle{value: amount}();
+        } else {
+            IERC20(currency).transfer(address(poolManager), amount);
+            poolManager.settle();
+        }
+
         return "";
     }
 
     function flash(address currency, uint256 amount) external {
         // Write your code here
+        poolManager.unlock(abi.encode(currency, amount));
     }
 }
